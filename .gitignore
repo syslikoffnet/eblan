@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+
+# производные артефакты анализа (пересоздаются скриптами work/)
+work/*.npy
+work/*.log
+work/fig/
+
+# тяжёлый мастер-WAV (пересобирается remix/make_remix.py)
+remix/handsgod_remix_master.wav

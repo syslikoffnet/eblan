@@ -1,0 +1,22 @@
+{
+  "bpm": 150.0,
+  "bar": 1.6,
+  "phase": 0.084,
+  "duration": 191.4,
+  "lufs": -10.8,
+  "true_peak": -0.3,
+  "pre_master_lufs": -13.63,
+  "pre_bars": 8,
+  "ext_bars": 5,
+  "layer_gains": {
+    "drums": -7.29,
+    "subs": 2.1,
+    "hooks": -0.9,
+    "intro": 4.06,
+    "outro": 0.24
+  },
+  "wav": "handsgod_remix_master.wav",
+  "mp3": "handsgod_remix_master.mp3",
+  "kick_events_src": 594,
+  "bars_total": 111
+}
