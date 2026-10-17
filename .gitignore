@@ -19,3 +19,8 @@ work/sep_test/
 work/models/
 work/bin/
 work/excerpt20.wav
+
+
+# трек: тяжёлые WAV (пересобираются track/make_track.py)
+track/*.wav
+track/vox/*.wav

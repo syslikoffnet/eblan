@@ -1,0 +1,16 @@
+{
+  "bpm": 128.0,
+  "key": "A minor",
+  "bars": 58,
+  "duration": 108.75,
+  "lufs": -8.38,
+  "true_peak": -0.3,
+  "tts": true,
+  "tts_info": {
+    "hook_shift": 2,
+    "break_shift": 2,
+    "adlibs_shift": 2
+  },
+  "hook_at": "0.00s",
+  "drop_at": "7.50s"
+}
