@@ -7,5 +7,15 @@ work/*.npy
 work/*.log
 work/fig/
 
-# тяжёлый мастер-WAV (пересобирается remix/make_remix.py)
+# тяжёлые WAV-мастера (пересобираются remix/make_remix.py)
 remix/handsgod_remix_master.wav
+remix/handsgod_remix_radio_edit.wav
+
+# служебное окружение для stem-разделения и модели
+.venv-sep/
+pretrained_models/
+work/sep/
+work/sep_test/
+work/models/
+work/bin/
+work/excerpt20.wav

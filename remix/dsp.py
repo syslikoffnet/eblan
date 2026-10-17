@@ -470,38 +470,46 @@ def limiter_stats(y, sr, ceiling_db=-0.3, lookahead=0.002, release=0.06):
                 max_gr=round(float(gr.max()), 2), touched_pct=round(float(np.mean(gr > 0.2) * 100), 1))
 
 
-def master(y, sr, target_lufs=-10.0, ceiling_db=-0.3, verbose=True):
-    """Мастер: DC -> EQ -> клей -> сатурация -> ширина -> LUFS-цель -> лимитер -> true peak."""
+def master(y, sr, target_lufs=-9.5, ceiling_db=-0.8, verbose=True):
+    """Мастер: DC -> EQ -> клей -> сатурация -> ширина -> LUFS-цель -> лимитер -> true peak.
+
+    Громкость добирается итерациями БЕЗ коррекции по TP (она применяется один раз в конце);
+    внутренняя цель выше на запас интерсэмпловых пиков.
+    """
     ceil = 10 ** (ceiling_db / 20.0)
     y = dc_block(np.atleast_2d(y).astype(np.float32), sr, 24.0)
-    y = eq(y, sr, [("lowshelf", 65.0, 0.7, 2.5),
-                   ("peaking", 350.0, 1.0, -1.5),
-                   ("peaking", 3000.0, 1.2, 1.5),
-                   ("highshelf", 10000.0, 0.7, 1.5)])
-    y = compressor(y, sr, thr_db=-10.0, ratio=1.6, attack=0.025, release=0.20,
-                   makeup_db=0.0, mix=0.35)
-    y = 0.85 * y + 0.15 * (np.tanh(1.4 * y) / 1.4)
-    y = stereo_widen(y, sr, amount=0.20, mono_below=120.0)
+    y = eq(y, sr, [("lowshelf", 62.0, 0.7, 2.2),
+                   ("peaking", 340.0, 1.0, -1.4),
+                   ("peaking", 3000.0, 1.2, 1.4),
+                   ("highshelf", 10000.0, 0.7, 1.6)])
+    # mid/side: низ в моно, немного воздуха в side
+    y = stereo_widen(y, sr, amount=0.18, mono_below=130.0)
+    y = compressor(y, sr, thr_db=-10.0, ratio=1.5, attack=0.03, release=0.22, mix=0.32)
+    # ленточная сатурация (лёгкая асимметрия -> чётные гармоники)
+    sat = np.tanh(1.35 * y + 0.06 * y ** 2)
+    y = 0.80 * y + 0.20 * sat / 1.35
+    y = dc_block(y, sr, 24.0)
 
-    lufs = measure_lufs(y, sr)
-    lim_ceiling = ceiling_db - 0.7                # сэмпловый клэмп ниже, чтобы интерсэмплы влезали
+    internal = target_lufs + 1.2          # запас под интерсэмпловые пики
     for i in range(4):
-        y = dc_block(y * (10 ** ((target_lufs - lufs) / 20.0)), sr, 22.0)   # фильтр ДО лимитера
-        gs = limiter_stats(y, sr, ceiling_db=lim_ceiling)
-        y = limiter(y, sr, ceiling_db=lim_ceiling, lookahead=0.0025, release=0.08)
-        tp = true_peak_db(y, sr, factor=4)
-        if tp > ceiling_db:                       # срезаем интерсэмпловый перегруз
-            y = y * (10 ** ((ceiling_db - tp) / 20.0))
+        lufs = measure_lufs(y, sr)
+        y = y * (10 ** ((internal - lufs) / 20.0))
+        y = dc_block(y, sr, 22.0)
+        gs = limiter_stats(y, sr, ceiling_db=ceiling_db - 0.4)
+        y = limiter(y, sr, ceiling_db=ceiling_db - 0.4, lookahead=0.0025, release=0.09)
         y = np.clip(y, -ceil, ceil)
         lufs = measure_lufs(y, sr)
         if verbose:
-            gr = db(np.maximum(np.abs(x_probe), 1e-9)) - db(np.maximum(np.abs(y * 0 + 0), 1e-9)) if False else None
-            print(f"    [master] итерация {i+1}: {lufs:.2f} LUFS, TP {tp:+.2f} dBTP, "
-                  f"ограничение: медиана {gs['median_gr']:.2f} дБ / p95 {gs['p95_gr']:.2f} / max {gs['max_gr']:.2f} дБ")
-        if abs(lufs - target_lufs) < 0.2:
+            print(f"    [master] итерация {i+1}: {lufs:.2f} LUFS, ограничение p95 "
+                  f"{gs['p95_gr']:.2f} / max {gs['max_gr']:.2f} дБ")
+        if abs(lufs - internal) < 0.2:
             break
+    tp = true_peak_db(y, sr, factor=4)
+    if tp > ceiling_db:
+        y = y * (10 ** ((ceiling_db - tp) / 20.0))
+    y = np.clip(y, -ceil, ceil)
     if verbose:
-        print(f"    [master] итог: {lufs:.2f} LUFS, TP {true_peak_db(y, sr):+.2f} dBTP, "
+        print(f"    [master] итог: {measure_lufs(y, sr):.2f} LUFS, TP {true_peak_db(y, sr):+.2f} dBTP, "
               f"max sample {float(np.max(np.abs(y))):.3f}")
     return y.astype(np.float32)
 
@@ -510,3 +518,127 @@ def spectrogram_db(x, sr, n_fft=4096, hop=1024):
     import librosa
 
     return librosa.amplitude_to_db(np.abs(librosa.stft(as_mono(x), n_fft=n_fft, hop_length=hop)), ref=np.max)
+
+
+# --------------------------------------------------------------------------------------
+# мелодические синты для ремикса (бас-грув, пэды, саб-дропы, раймшоты)
+# --------------------------------------------------------------------------------------
+
+
+def _saw(freq, n, sr, phase=0.0):
+    """Полосно-ограниченная пила (сумма гармоник до Найквиста), дешёвая и чистая."""
+    t = np.arange(n) / sr
+    out = np.zeros(n)
+    kmax = int(min(40, (sr / 2) / max(freq, 1.0)))
+    for k in range(1, kmax + 1):
+        if freq * k >= sr / 2:
+            break
+        out += np.sin(2 * np.pi * freq * k * t + phase * k) / k
+    return out * (2 / np.pi)
+
+
+def pwm(freq, n, sr, duty=0.35, width_mod=0.0):
+    t = np.arange(n) / sr
+    u = (t * freq) % 1.0
+    w = duty + width_mod * np.sin(2 * np.pi * 0.5 * t)
+    return np.where(u < w, 1.0, -1.0) - (2 * w - 1)
+
+
+def bass_pluck(sr, rng, f, dur=0.30, drive=2.2, lp0=1400.0, lp1=260.0,
+               env_decay=0.085, sub=0.55, click=0.12) -> np.ndarray:
+    """Плак-бас: пила+квадрат через затухающий ФНЧ + саб-синус. Возвращает (2,n)."""
+    n = int(dur * sr)
+    t = np.arange(n) / sr
+    osc = 0.6 * _saw(f, n, sr) + 0.4 * pwm(f * 1.003, n, sr, 0.42)
+    # огибающая фильтра: «вау» на атаке
+    seg = max(1, n // 8)
+    out = np.zeros(n)
+    lp = np.linspace(lp0, lp1, n) ** 0.5
+    # быстрый способ: 8 сегментов с разной отсечкой + кроссфейд
+    for i in range(8):
+        a = i * n // 8
+        b = min(n, (i + 1) * n // 8)
+        if b <= a:
+            continue
+        fc = float(lp[a])
+        sos = ss.butter(2, min(0.95, fc / (sr / 2)), btype="lowpass", output="sos")
+        out[a:b] = ss.sosfilt(sos, osc)[a:b]
+    ampenv = np.exp(-t / env_decay) * (1 - np.exp(-t * 900))
+    body = out * ampenv
+    body += sub * np.sin(2 * np.pi * f / 2 * t) * ampenv
+    cl = np.zeros(n)
+    if click > 0:
+        w = min(n, int(0.006 * sr))
+        cl[:w] = rng.standard_normal(w) * np.exp(-np.arange(w) / (0.0015 * sr)) * click
+    x = np.tanh(drive * (body + cl))
+    x = fade(x, sr, 0.0008, 0.012)
+    x = norm_peak(x, -3.0)
+    return np.stack([x, x])
+
+
+def pad(sr, rng, root_hz, dur, detune=0.007, lp=1800.0, attack=0.6, release=0.9) -> np.ndarray:
+    """Слоёный пэд: 3 расстроенные пилы + квинта, медленный ФНЧ-свип. (2,n)."""
+    n = int(dur * sr)
+    t = np.arange(n) / sr
+    voices = []
+    for cents in (-detune, 0.0, detune):
+        f = root_hz * (2 ** (cents / 12.0))
+        voices.append(_saw(f, n, sr))
+    voices.append(0.6 * _saw(root_hz * 1.5, n, sr))
+    voices.append(0.4 * _saw(root_hz * 2.0, n, sr))
+    mono = sum(voices) / len(voices)
+    # медленный свип фильтра
+    out = np.zeros(n)
+    steps = 16
+    for i in range(steps):
+        a = i * n // steps
+        b = min(n, (i + 1) * n // steps)
+        if b <= a:
+            continue
+        fc = lp * (0.4 + 0.6 * (i / max(1, steps - 1)))
+        sos = ss.butter(2, min(0.97, fc / (sr / 2)), btype="lowpass", output="sos")
+        out[a:b] = ss.sosfilt(sos, mono)[a:b]
+    envl = np.minimum(1.0, t / max(attack, 1e-3)) * np.minimum(
+        1.0, np.maximum(0.0, (dur - t) / max(release, 1e-3)) ** 1.2)
+    x = out * envl
+    lfo = 1.0 + 0.03 * np.sin(2 * np.pi * 0.23 * t)
+    x = x * lfo
+    x = norm_peak(x, -8.0)
+    # стерео: правый канал чуть расстроен по фазе
+    r = np.roll(x, int(0.011 * sr))
+    return np.stack([x, 0.85 * r + 0.15 * x])
+
+
+def sub_drop(sr, rng, f_start=90.0, f_end=32.0, dur=1.1, click=0.4) -> np.ndarray:
+    """Саб-дроп на даунбит: падение частоты + короткий шумовой «бум»."""
+    n = int(dur * sr)
+    t = np.arange(n) / sr
+    f = f_end + (f_start - f_end) * np.exp(-t / 0.16)
+    ph = 2 * np.pi * np.cumsum(f) / sr
+    x = np.sin(ph) * np.exp(-t / 0.42)
+    nz = ss.sosfilt(ss.tf2sos(*_biquad("lowpass", sr, 500.0, 0.7, 0)), rng.standard_normal((2, n)), axis=-1)
+    nz *= np.exp(-t / 0.09) * click
+    out = np.stack([x, x]) + nz
+    return norm_peak(fade(np.tanh(1.4 * out), sr, 0.001, 0.2), -4.0)
+
+
+def rim(sr, rng, dur=0.08) -> np.ndarray:
+    n = int(dur * sr)
+    t = np.arange(n) / sr
+    x = np.sin(2 * np.pi * 1650.0 * t) * np.exp(-t / 0.008)
+    x += 0.4 * rng.standard_normal(n) * np.exp(-t / 0.004)
+    x = ss.sosfilt(ss.tf2sos(*_biquad("highpass", sr, 900.0, 0.7, 0)), x)
+    x = norm_peak(fade(x, sr, 0.0002, 0.01), -8.0)
+    return np.stack([x, np.roll(x, 12)])
+
+
+def hat_roll(sr, rng, n_ticks=6, span=0.25, gain_ramp=( -6.0, 0.0 )) -> np.ndarray:
+    """Ратчет-ролл из коротких хэтов (ускорение на конце фразы)."""
+    total = int(span * sr) + int(0.06 * sr)
+    buf = np.zeros((2, total), dtype=np.float32)
+    for i in range(n_ticks):
+        pos = (i / n_ticks) ** 1.15 * span
+        h = hat(sr, rng, dur=0.05, f_hp=8500.0, decay=0.014)
+        g = gain_ramp[0] + (gain_ramp[1] - gain_ramp[0]) * i / max(1, n_ticks - 1)
+        add_at(buf, pos, h, sr, g)
+    return buf
