@@ -1,0 +1,54 @@
+{
+  "name": "EBLAN BOX — куча игр в одном приложении",
+  "short_name": "EBLAN BOX",
+  "description": "30 мобильных игр в одном офлайн-приложении: клоны Flappy Bird, 2048, Tetris, Pac-Man, Minecraft, Battle City и другие. Плюс каталог открытых исходников с GitHub.",
+  "lang": "ru",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait",
+  "background_color": "#08080f",
+  "theme_color": "#0b0b16",
+  "categories": [
+    "games",
+    "entertainment"
+  ],
+  "shortcuts": [
+    {
+      "name": "Случайная игра",
+      "url": "./#/home",
+      "description": "Открыть витрину игр"
+    },
+    {
+      "name": "Исходники",
+      "url": "./#/src",
+      "description": "Каталог открытых исходников игр с GitHub"
+    }
+  ],
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

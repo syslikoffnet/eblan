@@ -1,0 +1,21 @@
+{
+  "name": "eblan-box-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Упаковка EBLAN BOX (30 игр) в настоящий Android APK через Capacitor",
+  "scripts": {
+    "copy:web": "node tools/copy-web.mjs",
+    "prepare:all": "npm run copy:web && npx cap sync android",
+    "add:android": "npm run copy:web && npx cap add android && npx cap sync android",
+    "open": "npx cap open android",
+    "apk:debug": "cd android && ./gradlew assembleDebug",
+    "apk:release": "cd android && ./gradlew assembleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}

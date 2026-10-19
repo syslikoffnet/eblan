@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b0b16">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="EBLAN BOX — 28 игр в одном приложении: клоны Flappy Bird, 2048, Tetris, Pac-Man, Minecraft-подобные и другие. Плюс каталог открытых исходников с GitHub.">
+<title>EBLAN BOX — куча игр в одном приложении</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon-192.png" sizes="192x192">
+<link rel="icon" href="assets/icon-512.png" sizes="512x512">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="bg"></div>
+
+<header id="top">
+  <button class="logo" id="btn-home" aria-label="В меню">
+    <span class="logo-mark">▣</span>
+    <span class="logo-text">EBLAN<b>BOX</b></span>
+    <span class="logo-count" id="games-count"></span>
+  </button>
+  <nav class="tabs">
+    <button class="tab" data-tab="home">Игры</button>
+    <button class="tab" data-tab="src">Исходники</button>
+    <button class="tab" data-tab="about">О проекте</button>
+  </nav>
+  <div class="top-actions">
+    <button class="icon-btn" id="btn-sound" title="Звук">🔊</button>
+    <button class="icon-btn" id="btn-install" title="Установить приложение" hidden>⬇️</button>
+  </div>
+</header>
+
+<main>
+  <!-- ======= ГЛАВНАЯ ======= -->
+  <section id="view-home" class="view">
+    <div class="hero">
+      <h1>Куча игр.<br><span>Одно приложение.</span></h1>
+      <p id="hero-sub">Загрузи один раз — играй офлайн во всё.</p>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="search-row">
+      <input id="q" type="search" placeholder="Поиск игры… (флаппи, 2048, танчики)" autocomplete="off">
+      <button class="icon-btn" id="btn-random" title="Случайная игра">🎲</button>
+      <select id="sort">
+        <option value="default">По порядку</option>
+        <option value="best">Мои рекорды</option>
+        <option value="plays">Частые</option>
+        <option value="az">А–Я</option>
+      </select>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="grid" id="grid"></div>
+    <p class="empty" id="empty" hidden>Ничего не нашлось 🤷</p>
+  </section>
+
+  <!-- ======= ИГРА ======= -->
+  <section id="view-play" class="view" hidden>
+    <div class="play-bar">
+      <button class="btn ghost sm" id="btn-back">← Меню</button>
+      <div class="play-title" id="play-title"></div>
+      <button class="btn ghost sm" id="btn-info">ℹ︎</button>
+    </div>
+    <div id="stage"></div>
+    <div class="play-info" id="play-info" hidden></div>
+  </section>
+
+  <!-- ======= ИСХОДНИКИ ======= -->
+  <section id="view-src" class="view" hidden>
+    <div class="hero small">
+      <h1>Исходники игр</h1>
+      <p>Открытые репозитории с GitHub: описания, звёзды, скриншоты. Качай и собирай свой APK.</p>
+    </div>
+    <div class="search-row">
+      <input id="sq" type="search" placeholder="Поиск по исходникам…" autocomplete="off">
+      <select id="sfilter">
+        <option value="stars">Топ по звёздам</option>
+        <option value="fresh">Свежие</option>
+        <option value="apk">Есть APK / Play Market</option>
+        <option value="shots">Со скриншотами</option>
+        <option value="build">Собираемые (gradle/unity/xcode)</option>
+      </select>
+    </div>
+    <div class="chips" id="src-chips"></div>
+    <div class="src-stats" id="src-stats"></div>
+    <div class="src-list" id="src-list"></div>
+    <button class="btn primary" id="src-more" hidden>Показать ещё 60</button>
+  </section>
+
+  <!-- ======= О ПРОЕКТЕ ======= -->
+  <section id="view-about" class="view" hidden>
+    <div class="hero small"><h1>О проекте</h1></div>
+    <div class="about" id="about-body"></div>
+  </section>
+</main>
+
+<div id="toast"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

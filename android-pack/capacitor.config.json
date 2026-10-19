@@ -1,0 +1,13 @@
+{
+  "appId": "net.syslikoff.eblanbox",
+  "appName": "EBLAN BOX",
+  "webDir": "www",
+  "backgroundColor": "#08080f",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
