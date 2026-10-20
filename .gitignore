@@ -1,0 +1,17 @@
+# тяжёлые артефакты сбора (генерирует mobile-games-catalog/collect.py)
+mobile-games-catalog/data/repos.json
+mobile-games-catalog/data/readmes.jsonl
+mobile-games-catalog/data/catalog.json
+mobile-games-catalog/data/catalog.csv
+mobile-games-catalog/data/images/
+mobile-games-catalog/data/state.json
+mobile-games-catalog/data/collect.log
+
+# скриншоты, скопированные в приложение (генерирует tools/build_sources.py)
+game-hub/data/shots/
+
+# упаковка APK
+android-pack/node_modules/
+android-pack/www/
+android-pack/android/
+node_modules/
