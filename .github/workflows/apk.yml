@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -23,11 +23,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: SDK-пакеты Capacitor 6
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - name: Android SDK (вручную, без сторонних экшенов)
+        run: |
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk
+          curl -fsSLo tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q tools.zip
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/latest/ 2>/dev/null || mv cmdline-tools/* cmdline-tools/latest/
+          yes | cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
+          cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
 
       - uses: actions/setup-node@v4
         with:
