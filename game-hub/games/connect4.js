@@ -97,6 +97,8 @@ export default {
       return best;
     }
 
+    const NET = () => api.net.active;
+
     function aiMove() {
       const cols = [3, 2, 4, 1, 5, 0, 6].filter(c => canPlay(board, c));
       if (!cols.length) return;
@@ -136,7 +138,7 @@ export default {
         over = -1; score += 50; api.score(score); Sound.coin();
         setTimeout(nextRound, 1200);
       } else turn = 3 - who;
-      if (turn === 2 && !over) aiT = 0.45;
+      if (turn === 2 && !over) aiT = NET() ? 99 : 0.45;
       return true;
     }
 
@@ -146,8 +148,10 @@ export default {
       round++;
       board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
       over = 0; winLine = null; drop = null; turn = round % 2 ? 1 : 2;
-      if (turn === 2) aiT = 0.5;
+      if (turn === 2) aiT = NET() ? 99 : 0.5;
     }
+
+    api.net.onMsg(m => { if (m.t === 'mv' && NET() && turn === 2 && !over) doMove(m.c, 2); });
 
     function update(dt) {
       if (drop) { drop.t += dt; drop.y = M.lerp(drop.y, oy + drop.r * cs, Math.min(1, dt * 14)); }
@@ -155,17 +159,17 @@ export default {
       if (turn === 1 && !over) {
         for (const e of i.events) if (e.type === 'tap' || e.type === 'down') {
           const c = Math.floor((e.x - ox) / cs);
-          if (c >= 0 && c < COLS) doMove(c, 1);
+          if (c >= 0 && c < COLS && doMove(c, 1)) api.net.send({ t: 'mv', c });
         }
         if (i.pressed.left) { this._cur = M.clamp((this._cur ?? 3) - 1, 0, COLS - 1); Sound.click(); }
         if (i.pressed.right) { this._cur = M.clamp((this._cur ?? 3) + 1, 0, COLS - 1); Sound.click(); }
-        if (i.pressed.a || i.pressed.down) doMove(this._cur ?? 3, 1);
+        if (i.pressed.a || i.pressed.down) { const cc = this._cur ?? 3; if (doMove(cc, 1)) api.net.send({ t: 'mv', c: cc }); }
       }
-      if (turn === 2 && !over) { aiT -= dt; if (aiT <= 0) { aiT = 99; aiMove(); } }
+      if (turn === 2 && !over && !NET()) { aiT -= dt; if (aiT <= 0) { aiT = 99; aiMove(); } }
       const p = i.pointer;
-      if (p.down) { this._pt = (this._pt || 0) + dt; if (this._pt > 0.6) { this._pt = -99; hard = hard ? 0 : 1; api.Store.set('c4_hard', hard); Sound.click(); } }
+      if (p.down) { this._pt = (this._pt || 0) + dt; if (this._pt > 0.6 && !NET()) { this._pt = -99; hard = hard ? 0 : 1; api.Store.set('c4_hard', hard); Sound.click(); } }
       else this._pt = 0;
-      api.setHud(`${hard ? 'сильный ИИ' : 'лёгкий ИИ'} · раунд ${round} · <b style="color:#ff4d6d">${wins}</b>:<b style="color:#ffd43b">${losses}</b> (до 3)`);
+      api.setHud(`${NET() ? '🌐 ' + (api.net.peerNick || 'соперник') : (hard ? 'сильный ИИ' : 'лёгкий ИИ')} · раунд ${round} · <b style="color:#ff4d6d">${wins}</b>:<b style="color:#ffd43b">${losses}</b> (до 3)`);
     }
 
     function draw(c) {

@@ -1,7 +1,7 @@
  /* Крестики-нолики с минимаксом */
 import { M, Sound } from '../engine.js';
 
-const MODES = ['лёгкий', 'средний', 'непобедимый', '2 игрока'];
+const MODES = ['лёгкий', 'средний', 'непобедимый', '2 игрока', 'по сети'];
 
 export default {
   winTitle: 'Матч выигран!',
@@ -17,7 +17,7 @@ export default {
     function reset() {
       layout();
       board = Array(9).fill(0);
-      turn = 1; mode = api.Store.get('ttt_mode', 2); wins = 0; losses = 0; draws = 0;
+      turn = 1; mode = api.net.active ? 4 : api.Store.get('ttt_mode', 2); wins = 0; losses = 0; draws = 0;
       over = 0; line = null; animT = 0; aiT = 0; mark = 0; score = 0; round = 1;
       api.score(0);
     }
@@ -94,12 +94,12 @@ export default {
       if (over || board[i]) { Sound.blip(140); return; }
       if (mode === 3) { put(i, turn); return; }
       if (turn !== 1) return;
-      if (put(i, 1) && !over) { aiT = 0.32; }
+      if (put(i, 1)) { if (mode === 4) api.net.send({ t: 'mv', i }); else if (!over) aiT = 0.32; }
     }
 
     function update(dt) {
       animT = Math.max(0, animT - dt);
-      if (mode !== 3 && turn === 2 && !over) {
+      if (mode < 3 && turn === 2 && !over) {
         aiT -= dt;
         if (aiT <= 0) { aiMove(); aiT = 99; }
       }
@@ -107,9 +107,9 @@ export default {
       for (const e of i.events) if (e.type === 'tap') tapAt(e.x, e.y);
       // долгое нажатие — смена режима
       const p = i.pointer;
-      if (p.down) { this._pt = (this._pt || 0) + dt; if (this._pt > 0.55) { this._pt = -99; mode = (mode + 1) % 4; api.Store.set('ttt_mode', mode); Sound.click(); reset(); } }
+      if (p.down && mode !== 4) { this._pt = (this._pt || 0) + dt; if (this._pt > 0.55) { this._pt = -99; mode = (mode + 1) % 4; api.Store.set('ttt_mode', mode); Sound.click(); reset(); } }
       else this._pt = 0;
-      api.setHud(`${MODES[mode]} · раунд ${round} · <b style="color:#7ad7ff">${wins}</b>:<b style="color:#ff4d6d">${losses}</b> (до 3) · долгое нажатие — режим`);
+      api.setHud(`${MODES[mode]} · раунд ${round} · <b style="color:#7ad7ff">${wins}</b>:<b style="color:#ff4d6d">${losses}</b> (до 3)${mode === 4 ? ' · соперник: ' + (api.net.peerNick || '…') : ' · долгое нажатие — режим'}`);
     }
 
     function draw(c) {
@@ -147,10 +147,13 @@ export default {
       }
       c.textAlign = 'center'; c.font = `900 ${Math.round(W * 0.055)}px system-ui`;
       c.fillStyle = over === 1 ? '#8ee06b' : over === 2 ? '#ff4d6d' : over === -1 ? '#b06bff' : 'rgba(255,255,255,.35)';
-      const txt = over === 1 ? 'ТЫ ВЫИГРАЛ' : over === 2 ? (mode === 3 ? 'НОЛИКИ' : 'ИИ ВЫИГРАЛ') : over === -1 ? 'НИЧЬЯ' :
-        (mode === 3 ? (turn === 1 ? 'ход крестиков' : 'ход ноликов') : (turn === 1 ? 'твой ход' : 'думает ИИ…'));
+      const txt = over === 1 ? 'ТЫ ВЫИГРАЛ' : over === 2 ? (mode === 3 ? 'НОЛИКИ' : mode === 4 ? 'СОПЕРНИК ВЫИГРАЛ' : 'ИИ ВЫИГРАЛ') : over === -1 ? 'НИЧЬЯ' :
+        (mode === 3 ? (turn === 1 ? 'ход крестиков' : 'ход ноликов')
+        : mode === 4 ? (turn === 1 ? 'твой ход' : 'ход соперника…') : (turn === 1 ? 'твой ход' : 'думает ИИ…'));
       c.fillText(txt, W / 2, oy - 18);
     }
+
+    api.net.onMsg(m => { if (m.t === 'mv' && mode === 4 && turn === 2 && !over) put(m.i, 2); });
 
     return { reset, update, draw, resize: () => layout() };
   },

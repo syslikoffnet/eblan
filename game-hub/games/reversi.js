@@ -113,6 +113,8 @@ export default {
       return best;
     }
 
+    const NET = () => api.net.active;
+
     function aiTurn() {
       const ms = legal(2);
       if (!ms.length) { passT = 1.2; turn = 1; hint = legal(1); Sound.blip(200); return; }
@@ -158,20 +160,28 @@ export default {
       if (!m) { Sound.blip(140); return; }
       applyMove(board, m, 1);
       last = m; moves++; Sound.coin();
+      api.net.send({ t: 'mv', x: m.x, y: m.y });
       api.emit(ox + (cx + 0.5) * cs, oy + (cy + 0.5) * cs, { n: 10, color: '#8ee06b', speedMax: 180, life: 0.5 });
       afterMove();
     }
+
+    api.net.onMsg(m => {
+      if (m.t !== 'mv' || !NET() || over || turn !== 2) return;
+      const ms = legal(2).find(h => h.x === m.x && h.y === m.y);
+      if (!ms) return;
+      applyMove(board, ms, 2); last = ms; moves++; Sound.blip(320); afterMove();
+    });
 
     function update(dt) {
       passT = Math.max(0, passT - dt);
       anim.forEach(a => a.t -= dt);
       anim = anim.filter(a => a.t > 0);
-      if (!over && turn === 2) aiTurn();
+      if (!over && turn === 2 && !NET()) aiTurn();
       const i = api.input;
       for (const e of i.events) if (e.type === 'tap') tapAt(e.x, e.y);
       if (i.pressed.b) { hint = legal(1); Sound.click(); }
       const cnt = count(board); me = cnt.a; op = cnt.c;
-      api.setHud(`ты <b style="color:#8ee06b">${me}</b> : <b style="color:#ff8fa3">${op}</b> ИИ · ходов ${moves}${passT > 0 ? ' · <b style="color:#ffd43b">пас!</b>' : ''}${turn === 2 ? ' · думает…' : ''}`);
+      api.setHud(`ты <b style="color:#8ee06b">${me}</b> : <b style="color:#ff8fa3">${op}</b> ${NET() ? '🌐 ' + (api.net.peerNick || 'соперник') : 'ИИ'} · ходов ${moves}${passT > 0 ? ' · <b style="color:#ffd43b">пас!</b>' : ''}${turn === 2 ? ' · думает…' : ''}`);
     }
 
     function draw(c) {
@@ -214,7 +224,7 @@ export default {
       c.textAlign = 'center'; c.font = `900 ${Math.round(W * 0.045)}px system-ui`;
       c.fillStyle = over ? (over === 1 ? '#8ee06b' : '#ff4d6d') : 'rgba(255,255,255,.4)';
       c.fillText(over ? (over === 1 ? 'ПОБЕДА!' : over === 2 ? 'ИИ ВЫИГРАЛ' : 'НИЧЬЯ') :
-        (turn === 1 ? 'твой ход — зелёные' : 'ход ИИ…'), W / 2, oy + N * cs + 32);
+        (turn === 1 ? 'твой ход — зелёные' : NET() ? 'ход соперника…' : 'ход ИИ…'), W / 2, oy + N * cs + 32);
     }
 
     return { reset, update, draw, resize: () => layout() };

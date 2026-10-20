@@ -186,6 +186,27 @@ export class Shell {
     this.overlay.className = 'ov';
     host.appendChild(this.overlay);
 
+    /* сетевая сессия (WebRTC) — если хаб подключил */
+    this.net = hooks.net || null;
+    this._netHandlers = new Set();
+    if (this.net) {
+      this.netApi = {
+        active: true,
+        side: this.net.side,
+        nick: this.net.nick || '',
+        get peerNick() { return self0.net.peerNick; },
+        send: o => this.net.send(o),
+        onMsg: fn => { this._netHandlers.add(fn); return () => this._netHandlers.delete(fn); },
+      };
+      this.net.onMsg(m => {
+        if (m && m.t === 'again') { this.start(); return; }
+        this._netHandlers.forEach(fn => fn(m));
+      });
+    } else {
+      this.netApi = { active: false, side: null, nick: '', peerNick: '', send() {}, onMsg: () => () => {} };
+    }
+    const self0 = this;
+
     this.state = 'ready';   // ready | run | pause | over
     this.score = 0; this.best = Store.best(def.id);
     this.t = 0; this.acc = 0; this.last = 0; this.raf = 0;
@@ -228,6 +249,7 @@ export class Shell {
       win(finalScore) { self.gameWin(finalScore); },
       shake(mag = 8, t = 0.25) { self.shakeMag = Math.max(self.shakeMag, mag); self.shakeT = Math.max(self.shakeT, t); },
       emit(x, y, o) { self.particles.spawn(x, y, o); },
+      get net() { return self.netApi; },
     };
     return api;
   }
@@ -400,7 +422,9 @@ export class Shell {
       <h2>${title}</h2>
       <div class="ov-score">${this.score}</div>
       <div class="ov-best">${isBest ? '🔥 новый рекорд!' : 'рекорд: <b>' + Store.best(this.def.id) + '</b>'}</div>
-      <button class="btn primary big" data-act="restart">↻ Ещё раз</button>
+      ${this.net
+        ? '<button class="btn primary big" data-act="again">🌐 Реванш</button>'
+        : '<button class="btn primary big" data-act="restart">↻ Ещё раз</button>'}
       <button class="btn ghost" data-act="exit">← В меню</button>
     </div>`;
     this._wireOverlay();
@@ -414,7 +438,9 @@ export class Shell {
       b.onclick = () => {
         Sound.click();
         const a = b.dataset.act;
-        if (a === 'start' || a === 'restart') this.start();
+        if (a === 'start') this.start();
+        else if (a === 'again') { this.net.send({ t: 'again' }); this.start(); }
+        else if (a === 'restart') { if (this.net) { this.net.send({ t: 'again' }); this.start(); } else this.start(); }
         else if (a === 'resume') this.resume();
         else if (a === 'exit') this.destroy(), this.hooks.onExit && this.hooks.onExit();
       };

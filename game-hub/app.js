@@ -1,6 +1,10 @@
 /* EBLAN BOX — витрина и запуск игр. Ничего лишнего: только игры. */
 import { GAMES, TAGS, AKA } from './games/index.js';
 import { Shell, Store, Sound } from './engine.js';
+import { Net } from './net.js';
+
+/* игры с сетевым режимом */
+const NETGAMES = new Set(['tictactoe', 'connect4', 'reversi']);
 
 const $ = s => document.querySelector(s);
 /* транслит: понимаем и «флаппи», и «flappy» */
@@ -59,6 +63,7 @@ function cardFor(g) {
     <p class="gtitle">${g.title}</p>
     <p class="gsub">${g.sub}</p>
     <div class="gmeta">
+      ${NETGAMES.has(g.id) ? '<span class="badge net">🌐 сеть</span>' : ''}
       ${g.hot ? '<span class="badge hot">ХИТ</span>' : ''}
       ${plays > 0 ? `<span class="badge">▶ ${plays}</span>` : ''}
       ${best ? `<span class="best">🏆 ${best}</span>` : ''}
@@ -108,11 +113,16 @@ function renderChips() {
 }
 
 /* ---------- запуск игры ---------- */
-async function showPlay(id) {
+let currentNet = null;   // активная сетевая сессия
+async function showPlay(id, netSession) {
   const meta = GAMES.find(g => g.id === id);
   if (!meta) { go('home'); return; }
+  if (netSession !== undefined) currentNet = netSession || null;
   $('#view-play').hidden = false;
   $('#play-title').textContent = `${meta.emoji} ${meta.title}`;
+  const nb = $('#btn-net');
+  nb.hidden = !NETGAMES.has(id);
+  nb.textContent = currentNet ? '🌐✓' : '🌐';
   const stage = $('#stage');
   destroyShell();
   stage.innerHTML = '<div class="ov show"><div class="ov-card"><div class="ov-emoji">⏳</div><h2>Загрузка…</h2></div></div>';
@@ -132,9 +142,75 @@ async function showPlay(id) {
   shell = new Shell(stage, def, {
     onExit: () => go('home'),
     onEnd: () => { renderGrid(); renderStats(); },
+    net: currentNet,
   });
 }
-$('#btn-back').onclick = () => go('home');
+$('#btn-back').onclick = () => { if (currentNet) { currentNet.close(); currentNet = null; } go('home'); };
+
+/* ---------- сеть: комнаты по коду ---------- */
+const netModal = () => $('#net-modal');
+function netOpen(gameId) {
+  netModal().hidden = false;
+  $('#net-code-box').hidden = true;
+  $('#net-status').textContent = 'ждём соперника… дай ему этот код';
+  $('#net-code-in').value = '';
+  if (Net.nick()) showNetMain(); else { $('#net-nick-box').hidden = false; $('#net-main').hidden = true; }
+  netModal()._game = gameId;
+}
+function showNetMain() {
+  $('#net-nick-box').hidden = true; $('#net-main').hidden = false;
+  $('#net-nick-show').textContent = Net.nick();
+}
+$('#net-nick-save').onclick = () => {
+  const v = ($('#net-nick').value || '').trim().slice(0, 12);
+  if (!v) { toast('Введи ник'); return; }
+  Net.setNick(v); showNetMain(); Sound.click();
+};
+$('#net-nick-edit').onclick = () => { $('#net-main').hidden = true; $('#net-nick-box').hidden = false; $('#net-nick').value = Net.nick(); };
+$('#net-cancel').onclick = () => { netModal().hidden = true; };
+$('#btn-net').onclick = () => { Sound.click(); netOpen(currentGameId()); };
+function currentGameId() {
+  const m = location.hash.match(/^#\/play\/(\w+)/); return m ? m[1] : null;
+}
+function netFail(msg) { $('#net-status').textContent = '⚠️ ' + msg; $('#net-code-box').hidden = false; $('#net-code').textContent = '----'; }
+function netConnected(sess) {
+  netModal().hidden = true;
+  toast(`🌐 Подключено: ${sess.peerNick} · ты ${sess.side === 'host' ? 'хост' : 'гость'}`);
+  showPlay(sess.game, sess);
+}
+function netCb(sess) {
+  return ev => {
+    if (ev.st === 'wait') { $('#net-code-box').hidden = false; $('#net-code').textContent = ev.code; }
+    else if (ev.st === 'ok') netConnected(sess);
+    else if (ev.st === 'err') netFail(ev.msg || 'ошибка сети');
+    else if (ev.st === 'bye') {
+      if (currentNet === sess) {
+        currentNet = null; sess.close();
+        toast('😔 Соперник отключился');
+        showPlay(sess.game, null);
+      }
+    }
+  };
+}
+$('#net-host').onclick = async () => {
+  Sound.click();
+  $('#net-code-box').hidden = false; $('#net-code').textContent = '…';
+  $('#net-status').textContent = 'создаём комнату…';
+  let cb = () => {};
+  try {
+    const sess = await Net.host(currentGameId(), ev => cb(ev));
+    cb = netCb(sess);
+  } catch (e) { netFail(e.message); }
+};
+$('#net-join').onclick = async () => {
+  Sound.click();
+  $('#net-status').textContent = 'подключаемся…';
+  let cb = () => {};
+  try {
+    const sess = await Net.join(currentGameId(), $('#net-code-in').value, ev => cb(ev));
+    cb = netCb(sess);
+  } catch (e) { netFail(e.message); }
+};
 
 /* ---------- события витрины ---------- */
 $('#q').oninput = () => renderGrid();

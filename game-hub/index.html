@@ -61,11 +61,36 @@
     <div class="play-bar">
       <button class="btn ghost sm" id="btn-back">← Меню</button>
       <div class="play-title" id="play-title"></div>
+      <button class="btn ghost sm" id="btn-net" title="Играть по сети" hidden>🌐</button>
     </div>
     <div id="stage"></div>
   </section>
 
 </main>
+
+<div class="modal" id="net-modal" hidden>
+  <div class="modal-card">
+    <h3>🌐 Игра по сети</h3>
+    <div id="net-nick-box">
+      <p class="ov-hint">Как тебя назвать? Настроим один раз — дальше только комнаты по коду.</p>
+      <input id="net-nick" maxlength="12" placeholder="Твой ник" autocomplete="off">
+      <button class="btn primary" id="net-nick-save">Сохранить</button>
+    </div>
+    <div id="net-main" hidden>
+      <p class="ov-hint">Ты: <b id="net-nick-show"></b> <button class="linklike" id="net-nick-edit">изменить</button></p>
+      <button class="btn primary" id="net-host">Создать комнату</button>
+      <div id="net-code-box" hidden>
+        <div class="net-code" id="net-code"></div>
+        <p class="ov-hint" id="net-status">ждём соперника… дай ему этот код</p>
+      </div>
+      <div class="net-join">
+        <input id="net-code-in" maxlength="4" placeholder="КОД" autocomplete="off">
+        <button class="btn" id="net-join">Войти по коду</button>
+      </div>
+      <button class="btn ghost" id="net-cancel">Отмена</button>
+    </div>
+  </div>
+</div>
 
 <div id="toast"></div>
 <script type="module" src="app.js"></script>

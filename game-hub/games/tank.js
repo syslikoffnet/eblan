@@ -270,6 +270,7 @@ export default {
       // пули
       for (let k = bullets.length - 1; k >= 0; k--) {
         const b = bullets[k];
+        if (!b) continue;   // массив мог сжаться на прошлом шаге (пуля-в-пулю)
         const steps = 3;
         let gone = false;
         for (let s = 0; s < steps && !gone; s++) {

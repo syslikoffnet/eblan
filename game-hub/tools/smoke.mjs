@@ -50,6 +50,7 @@ function makeApi(W, H) {
     input, M, Sound, Store, particles,
     rand: M.rand, rint: M.rint, pick: M.pick,
     emit: (x, y, o) => particles.spawn(x, y, o),
+    net: { active: false, side: null, nick: '', peerNick: '', send() {}, onMsg: () => () => {} },
     shake() {}, score(n) { api._score = n; if (!Number.isFinite(n)) throw new Error('score NaN'); },
     addScore(n) { api.score((api._score || 0) + n); },
     setHud(s) { api._hud = s; },

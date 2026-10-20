@@ -226,3 +226,21 @@ main{max-width:1100px;margin:0 auto;padding:14px 12px calc(40px + var(--safe-b))
   transition:.25s;pointer-events:none;z-index:99;max-width:90vw;text-align:center
 }
 #toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* --- сетевые комнаты --- */
+.modal{position:fixed;inset:0;z-index:60;background:rgba(5,5,12,.72);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;padding:18px}
+.modal[hidden]{display:none}
+.modal-card{width:min(420px,100%);background:var(--card);border:1px solid var(--line);border-radius:20px;
+  padding:20px;display:flex;flex-direction:column;gap:12px;text-align:center}
+.modal-card h3{margin:0;font-size:20px}
+.modal-card input{background:#0d0d1c;border:1px solid var(--line);border-radius:12px;color:var(--txt);
+  padding:11px 14px;font-size:16px;text-align:center;letter-spacing:2px;text-transform:uppercase}
+.modal-card .btn{width:100%}
+.net-code{font:900 40px/1 ui-monospace,monospace;letter-spacing:12px;color:var(--acc2);
+  background:#0d0d1c;border:1px dashed var(--acc2);border-radius:14px;padding:14px 8px 14px 20px}
+.net-join{display:flex;gap:8px}
+.net-join input{flex:1;letter-spacing:6px}
+.net-join .btn{width:auto;flex:1.2}
+.linklike{background:none;border:none;color:var(--acc);font-size:12px;cursor:pointer;padding:0}
+.badge.net{background:#123b33;color:#7dffb0}
